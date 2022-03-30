@@ -18,6 +18,7 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+
 #pragma once
 #include <sgd/sgd.h>
 #include <sgd/ttc_obstacles.h>
@@ -30,46 +31,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 enum class TTCPow { ONE, TWO };
 
-// ORIGINAL
-// struct TTCParams {
-//   float k_goal = 1.0f;
-//   std::vector<float> ts_goal_check = {1.0f};
-//   std::vector<Eigen::Vector2f> goals;
-
-//   bool use_ttc_cost = true;
-//   float k_ttc = 1.0f;
-//   TTCPow ttc_power = TTCPow::ONE;
-//   bool find_all_ttcs = true;
-
-//   float k_dist = 0.1f;
-//   float dist_smooth = -10.0f;
-
-//   Eigen::VectorXf x_0;
-//   Eigen::VectorXf u_curr;
-//   std::vector<TTCObstacle*> obsts;
-
-//   float dt_step = 0.1f;
-//   float max_ttc = 5.0f;
-
-//   // Collision Parameters
-//   float radius = 0.1f;
-//   float safety_radius = 0.05f;
-
-//   // Constraint Parameters
-//   float vel_limit = 0.3f;
-//   float rot_vel_limit = 1.0f;
-//   float steer_limit = 0.25f * static_cast<float>(M_PI);
-
-//   float k_constr = 10.0f;
-//   float k_v_constr = 10.0f;
-//   bool box_constraint = true;
-//   Eigen::VectorXf u_lb, u_ub;
-//   Eigen::VectorXf x_lb, x_ub;
-//   float circle_u_limit = 0.3f;
-// };
-
 struct TTCParams {
-  float k_goal = 1.0f;
+  float k_goal = 1.0f; // Time horizon for the goal
   std::vector<float> ts_goal_check = {1.0f};
   std::vector<Eigen::Vector2f> goals;
 
@@ -101,6 +64,7 @@ struct TTCParams {
   float k_constr = 10.0f;
   float k_v_constr = 10.0f;
   bool box_constraint = true;
+  //!!!!!
   Eigen::VectorXf u_lb, u_ub;
   Eigen::VectorXf x_lb, x_ub;
   float circle_u_limit = 0.3f;
