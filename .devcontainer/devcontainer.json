@@ -1,0 +1,11 @@
+{
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+
+	"workspaceMount": "source=${localWorkspaceFolder},target=/opt/nhttc_ws/src/nhttc,type=bind",
+	"workspaceFolder": "/opt/nhttc_ws/"
+
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	// "remoteUser": "root"
+}
