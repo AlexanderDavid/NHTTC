@@ -1,0 +1,8 @@
+<launch>
+    <env name="ROSCONSOLE_CONFIG_FILE" value="$(find nhttc_ros)/config/rosconsole.conf"/>
+
+    <arg name="nhttc_vive_config" default="$(find nhttc_ros)/config/nhttc_vive.yaml" />
+    <rosparam file="$(arg nhttc_vive_config)" command="load" />
+
+    <node pkg="nhttc_ros" type="nhttc_ros_node" launch-prefix="gdb -ex run --args" name="controller" output="screen"></node>
+</launch>
