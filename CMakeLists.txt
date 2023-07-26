@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   nav_msgs
   geometry_msgs
+  visualization_msgs
   tf2
 )
 
@@ -35,6 +36,7 @@ catkin_package(
 	roscpp 
 	nav_msgs
 	geometry_msgs
+  visualization_msgs
  	tf2
 )
 

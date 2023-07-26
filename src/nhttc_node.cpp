@@ -9,9 +9,124 @@
 #include "geometry_msgs/Twist.h"
 #include "geometry_msgs/Point.h"
 #include "geometry_msgs/PoseStamped.h"
+#include "visualization_msgs/MarkerArray.h"
+#include "visualization_msgs/Marker.h"
 
 #include "nhttc_node.h"
 #include "nhttc_interface.h"
+
+
+void NHTTCNode::viz_publish() 
+{
+  visualization_msgs::MarkerArray marr{};
+
+  // Publish markers for all the agents
+  for (size_t i = 0; i < agents.size(); i++)
+  {
+    visualization_msgs::Marker pose_marker{};
+    pose_marker.header.frame_id = "odom";
+    pose_marker.header.stamp = ros::Time::now();
+
+    pose_marker.ns = "nhttc_agent";
+    pose_marker.id = 2 + i;
+
+    pose_marker.type = visualization_msgs::Marker::CUBE;
+    pose_marker.action = visualization_msgs::Marker::ADD;
+
+    Eigen::Vector2f agent_state = agents[i].prob->params.x_0.head(2);
+    pose_marker.pose.position.x = agent_state[0];
+    pose_marker.pose.position.y = agent_state[1];
+    pose_marker.pose.orientation.w = 1.0;
+
+    pose_marker.scale.x = 0.3;
+    pose_marker.scale.y = 0.3;
+    pose_marker.scale.z = 0.3;
+
+    pose_marker.color.r = 0.0f;
+    pose_marker.color.g = i == own_index ? 1.0f : 0.0f;
+    pose_marker.color.b = i == own_index ? 0.0f : 1.0f;
+    pose_marker.color.a = 1.0;
+
+    pose_marker.lifetime = ros::Duration();
+
+    marr.markers.push_back(pose_marker);
+  }
+
+  // Goal Marker
+  visualization_msgs::Marker goal_marker{};
+  goal_marker.header.frame_id = "odom";
+  goal_marker.header.stamp = ros::Time::now();
+
+  goal_marker.ns = "nhttc";
+  goal_marker.id = 0;
+
+  goal_marker.type = visualization_msgs::Marker::SPHERE;
+  goal_marker.action = visualization_msgs::Marker::ADD;
+
+  Eigen::Vector2f agent_goal = agents[own_index].goal;
+  goal_marker.pose.position.x = agent_goal[0];
+  goal_marker.pose.position.y = agent_goal[1];
+  goal_marker.pose.orientation.w = 1.0;
+
+  goal_marker.scale.x = 0.3;
+  goal_marker.scale.y = 0.3;
+  goal_marker.scale.z = 0.3;
+
+  goal_marker.color.r = 0.5f;
+  goal_marker.color.g = 0.5f;
+  goal_marker.color.b = 0.0f;
+  goal_marker.color.a = 1.0;
+
+  goal_marker.lifetime = ros::Duration();
+  marr.markers.push_back(goal_marker);
+
+  // Extrapolated Control Path Marker
+  visualization_msgs::Marker path_marker{};
+  path_marker.header.frame_id = "odom";
+  path_marker.header.stamp = ros::Time::now();
+
+  path_marker.ns = "nhttc";
+  path_marker.id = 1;
+
+  path_marker.type = visualization_msgs::Marker::LINE_STRIP;
+  path_marker.action = visualization_msgs::Marker::ADD;
+
+  Eigen::Vector3f agent_state = agents[own_index].prob->params.x_0;
+  Eigen::Vector2f agent_control = agents[own_index].prob->params.u_curr;
+
+  float ts = 0.01;
+  int lookahead = 100;
+
+  for(int i = 0; i < lookahead; i++)
+  {
+    float future = ts * i;
+
+    agent_state[0] += agent_control[0] * std::cos(agent_state[2]) * ts;
+    agent_state[1] += agent_control[0] * std::sin(agent_state[2]) * ts;
+    agent_state[2] += agent_control[1] * ts;
+
+    geometry_msgs::Point pt{};
+    pt.x = agent_state[0];
+    pt.y = agent_state[1];
+
+    path_marker.points.push_back(pt);
+  }
+
+  path_marker.pose.orientation.w = 1.0;
+
+  path_marker.scale.x = 0.3;
+  
+  path_marker.color.r = 0.5f;
+  path_marker.color.g = 0.5f;
+  path_marker.color.b = 0.0f;
+  path_marker.color.a = 1.0;
+
+  path_marker.lifetime = ros::Duration();
+
+  marr.markers.push_back(path_marker);
+
+  pub_viz.publish(marr);
+}
 
 /**
   * setting up agents
@@ -20,11 +135,11 @@
   *
   * @param takes the index value corresponding to that agent
   */
-void NHTTCNode::agent_setup(int i)
+void NHTTCNode::agent_setup(int i, int agent_type, bool reactive)
 {
   Eigen::Vector2f goal(0.0, 0.0);
   Eigen::VectorXf pos = Eigen::VectorXf::Zero(3);
-  agents.emplace_back(GetAgentParts(6, pos, true, goal), global_params);
+  agents.emplace_back(GetAgentParts(agent_type, pos, reactive, goal), global_params);
 }
 
 /**
@@ -66,6 +181,21 @@ void NHTTCNode::PoseCallback(const nav_msgs::Odometry::ConstPtr& msg)
   x_o[2] = rpy[2];
 
   agents[own_index].SetEgo(x_o);
+}
+
+void NHTTCNode::NeighborCallback(const nav_msgs::Odometry::ConstPtr& msg, int neighbor_idx)
+{
+  Eigen::VectorXf x = Eigen::VectorXf::Zero(2);
+  Eigen::VectorXf u = Eigen::VectorXf::Zero(2);
+
+  x[0] = msg->pose.pose.position.x;
+  x[1] = msg->pose.pose.position.y;
+
+  u[0] = msg->twist.twist.linear.x;
+  u[1] = msg->twist.twist.linear.y;
+
+  agents[neighbor_idx].SetEgo(x);
+  agents[neighbor_idx].SetControls(u);
 }
 
 /**
@@ -117,11 +247,23 @@ void NHTTCNode::check_new_agents(ros::NodeHandle &nh)
   {
     const ros::master::TopicInfo& info = *it;
 
-    if (info.name == "/odom")
+    if (info.name == odom_topic && own_index == -1)
     {
       count++;
+      ROS_INFO_STREAM("Found ego (idx: " << count << ") on topic " << info.name);
       own_index = count;
-      agent_setup(count);
+      agent_setup(count, 2, true);
+    }
+
+    if (info.name.find(neighbor_topic_root) != std::string::npos && std::find(topics_neighbor.begin(), topics_neighbor.end(), info.name) == topics_neighbor.end())
+    {
+      count++;
+      ROS_INFO_STREAM("Found neighbor (idx: " << count << ") on topic " << info.name);
+      agent_setup(count, 0, false);
+      subs_neighbor.push_back(
+        nh.subscribe<nav_msgs::Odometry>(info.name, 10, boost::bind(&NHTTCNode::NeighborCallback, this, _1, count))
+      );
+      topics_neighbor.push_back(info.name);
     }
 
   }
@@ -181,6 +323,14 @@ NHTTCNode::NHTTCNode(ros::NodeHandle &nh)
   {
     cmd_vel_topic = "/cmd_vel";
   }
+  if (not nh.getParam("/cutoff_dist", cutoff_dist))
+  {
+    cutoff_dist = 0.1f;
+  }
+  if (not nh.getParam("/neighbor_topic_root", neighbor_topic_root))
+  {
+    neighbor_topic_root = "/odometry/tracker_";
+  }
 
   ConstructGlobalParams(&global_params);
   count = -1; 
@@ -197,6 +347,7 @@ NHTTCNode::NHTTCNode(ros::NodeHandle &nh)
   sub_wp = nh.subscribe("/move_base_simple/goal", 10, &NHTTCNode::GoalCallback, this);
   sub_pose = nh.subscribe(odom_topic, 10, &NHTTCNode::PoseCallback, this);
 
+  pub_viz = nh.advertise<visualization_msgs::MarkerArray>("/nhttc/debug_markers", 1);
   pub_cmd = nh.advertise<geometry_msgs::Twist>(cmd_vel_topic, 10);
 
   ROS_INFO("node started"); // tell the world that the node has initialized.
@@ -211,7 +362,8 @@ NHTTCNode::NHTTCNode(ros::NodeHandle &nh)
   */
 void NHTTCNode::setup()
 {
-  steer_limit = 0.1*M_PI; // max steering angle ~18 degrees. :(. I wanted to drift with the MuSHR car. 
+  steer_limit = 0.5*M_PI; 
+
   wheelbase = agents[own_index].prob->params.wheelbase;
   agents[own_index].prob->params.safety_radius = safety_radius;
   agents[own_index].prob->params.steer_limit = steer_limit;
@@ -219,10 +371,6 @@ void NHTTCNode::setup()
   agents[own_index].prob->params.u_lb = allow_reverse ? Eigen::Vector2f(-speed_lim, -steer_limit) : Eigen::Vector2f(0, -steer_limit);
   agents[own_index].prob->params.u_ub = Eigen::Vector2f(speed_lim, steer_limit);
   agents[own_index].prob->params.max_ttc = max_ttc;
-
-  turning_radius = wheelbase / tanf(fabs(steer_limit));
-  cuttoff_dist = fabs(steer_limit) == 0 ? 1.0 : carrot_goal_ratio*turning_radius; 
-  cutoff_dist += agents[own_index].prob->params.radius;
 
   ROS_INFO("carrot_goal_ratio: %f",carrot_goal_ratio);
   ROS_INFO("max_ttc: %f", max_ttc);
@@ -251,6 +399,17 @@ void NHTTCNode::plan()
   // Controls are 0,0 by default.
   Eigen::VectorXf controls = Eigen::VectorXf::Zero(2);
 
+  // Check if we are within set distance to goal. If so stop planning until next goal is found
+  Eigen::Vector2f agent_state = agents[own_index].prob->params.x_0.head(2);
+  float goal_dist = (agents[own_index].goal - agent_state).norm();
+
+  ROS_INFO_STREAM_THROTTLE(1, "Goal Distance: " << goal_dist << " / " << cutoff_dist);
+
+  if (goal_dist < cutoff_dist)
+  {
+    goal_received = false;
+  }
+
   if(goal_received)
   { 
     controls = agents[own_index].UpdateControls();
@@ -258,6 +417,7 @@ void NHTTCNode::plan()
 
   float speed = controls[0]; //speed in m/s
   float steering_angle = controls[1]; //steering angle in radians. +ve is left. -ve is right 
+  ROS_DEBUG_STREAM("New control: " << speed << ", " << steering_angle);
   send_commands(speed,steering_angle); //just sending out anything for now;
   return;
 }
@@ -287,6 +447,7 @@ int main(int argc, char** argv)
 
     if(init) //if init
     {
+      local_planner.viz_publish();
       local_planner.plan();
     }
 
