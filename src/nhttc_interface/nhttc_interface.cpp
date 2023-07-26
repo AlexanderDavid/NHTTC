@@ -24,6 +24,7 @@ Robotics Lab at the University of Washington
 
 */
 
+#include <ros/ros.h>
 #include <iostream>
 #include <nhttc_interface/nhttc_interface.h>
 #include <sgd/ttc_sgd_problem_models.h>
@@ -231,7 +232,7 @@ Eigen::VectorXf Agent::UpdateControls() {
   // Solve SGD
   float sgd_opt_cost;
   Eigen::VectorXf u_new = SGD::Solve(prob, opt_params, &sgd_opt_cost);
-  std::cout << u_new << "\n";
+  ROS_INFO_STREAM_THROTTLE(1, "New Control: " << u_new[0] << ", " << u_new[1]);
   prob->params.u_curr = 0.5f * (u_new + prob->params.u_curr); // Reciprocity
   return prob->params.u_curr;
 }
