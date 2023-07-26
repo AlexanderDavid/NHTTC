@@ -52,7 +52,7 @@ struct TTCParams {
   float max_ttc = 5.0f;
 
   // Collision Parameters
-  float radius = 0.465 * sqrt(5) / 4.0; // CHANGED
+  float radius = 0.17;                  // CHANGED
   float safety_radius = 0.02f;          // CHANGED
   float wheelbase = 0.29f;              // CHANGED
 
@@ -60,10 +60,10 @@ struct TTCParams {
   float vel_limit = 1.3f;
   float rot_vel_limit = 1.0f;
   float steer_limit = 0.25f * static_cast<float>(M_PI);
-
   float k_constr = 10.0f;
   float k_v_constr = 10.0f;
   bool box_constraint = true;
+
   //!!!!!
   Eigen::VectorXf u_lb, u_ub;
   Eigen::VectorXf x_lb, x_ub;
