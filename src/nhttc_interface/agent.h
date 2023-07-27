@@ -39,6 +39,7 @@ private:
 
   int _u_dim, _x_dim;
   bool _reactive, _controlled, _done = false;
+  double _last_update;
 
   AType _a_type;
   std::string _type_name;
@@ -50,6 +51,8 @@ public:
   inline TTCSGDProblem* GetProblem() { return _prob; }
   inline bool isReactive() { return _reactive; }
   inline Eigen::Vector2f GetGoal() { return _goal; }
+  
+  inline SetLastUpdated(double time) { _last_update = time; };
 
   void SetPlanTime(float agent_plan_time_ms);
 

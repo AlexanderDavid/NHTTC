@@ -180,6 +180,7 @@ void NHTTCNode::PoseCallback(const nav_msgs::Odometry::ConstPtr& msg)
   x_o[2] = rpy[2];
 
   agents[own_index].SetEgo(x_o);
+  agents[own_index].SetLastUpdated(msg->header.stamp.toSec());
 }
 
 void NHTTCNode::NeighborCallback(const nav_msgs::Odometry::ConstPtr& msg, int neighbor_idx)
@@ -195,6 +196,7 @@ void NHTTCNode::NeighborCallback(const nav_msgs::Odometry::ConstPtr& msg, int ne
 
   agents[neighbor_idx].SetEgo(x);
   agents[neighbor_idx].SetControls(u);
+  agents[neighbor_idx].SetLastUpdated(msg->header.stamp.toSec());
 }
 
 /**
