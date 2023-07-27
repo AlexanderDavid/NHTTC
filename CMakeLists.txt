@@ -1,8 +1,9 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.5)
 project(nhttc_ros)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -52,7 +53,6 @@ include_directories(
 #   src/nhttc_interface
   src
 )
-
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
