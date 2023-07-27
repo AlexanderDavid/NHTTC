@@ -2,6 +2,7 @@
 
 #include <Eigen/Core>
 
+#include <nhttc_interface/agent.h>
 #include <sgd/ttc_sgd_problem.h>
 #include <nhttc_interface/util.h>
 #include <nhttc_interface/agent.h>
@@ -48,7 +49,7 @@ public:
 
   NHTTCNode(ros::NodeHandle &nh);
 
-  void agent_setup(int i, int agent_type, bool reactive);
+  void agent_setup(int i, AType agent_type, bool reactive);
   void rpy_from_quat(float rpy[3],const nav_msgs::Odometry::ConstPtr& msg);
   void send_commands(float speed, float steer);
   void check_new_agents(ros::NodeHandle &nh);

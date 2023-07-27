@@ -32,7 +32,7 @@ void NHTTCNode::viz_publish()
     pose_marker.type = visualization_msgs::Marker::CUBE;
     pose_marker.action = visualization_msgs::Marker::ADD;
 
-    Eigen::Vector2f agent_state = agents[i].prob->params.x_0.head(2);
+    Eigen::Vector2f agent_state = agents[i].GetProblem()->params.x_0.head(2);
     pose_marker.pose.position.x = agent_state[0];
     pose_marker.pose.position.y = agent_state[1];
     pose_marker.pose.orientation.w = 1.0;
@@ -62,7 +62,7 @@ void NHTTCNode::viz_publish()
   goal_marker.type = visualization_msgs::Marker::SPHERE;
   goal_marker.action = visualization_msgs::Marker::ADD;
 
-  Eigen::Vector2f agent_goal = agents[own_index].goal;
+  Eigen::Vector2f agent_goal = agents[own_index].GetGoal();
   goal_marker.pose.position.x = agent_goal[0];
   goal_marker.pose.position.y = agent_goal[1];
   goal_marker.pose.orientation.w = 1.0;
@@ -90,8 +90,8 @@ void NHTTCNode::viz_publish()
   path_marker.type = visualization_msgs::Marker::LINE_STRIP;
   path_marker.action = visualization_msgs::Marker::ADD;
 
-  Eigen::Vector3f agent_state = agents[own_index].prob->params.x_0;
-  Eigen::Vector2f agent_control = agents[own_index].prob->params.u_curr;
+  Eigen::Vector3f agent_state = agents[own_index].GetProblem()->params.x_0;
+  Eigen::Vector2f agent_control = agents[own_index].GetProblem()->params.u_curr;
 
   float ts = 0.01;
   int lookahead = 100;
@@ -134,11 +134,11 @@ void NHTTCNode::viz_publish()
   *
   * @param takes the index value corresponding to that agent
   */
-void NHTTCNode::agent_setup(int i, int agent_type, bool reactive)
+void NHTTCNode::agent_setup(int i, AType agent_type, bool reactive)
 {
   Eigen::Vector2f goal(0.0, 0.0);
   Eigen::VectorXf pos = Eigen::VectorXf::Zero(3);
-  agents.emplace_back(GetAgentParts(agent_type, pos, reactive, goal), global_params);
+  agents.emplace_back(agent_type, true, reactive, pos, goal, global_params);
 }
 
 /**
@@ -251,14 +251,14 @@ void NHTTCNode::check_new_agents(ros::NodeHandle &nh)
       count++;
       ROS_INFO_STREAM("Found ego (idx: " << count << ") on topic " << info.name);
       own_index = count;
-      agent_setup(count, 2, true);
+      agent_setup(count, AType::DD, true);
     }
 
     if (info.name.find(neighbor_topic_root) != std::string::npos && std::find(topics_neighbor.begin(), topics_neighbor.end(), info.name) == topics_neighbor.end())
     {
       count++;
       ROS_INFO_STREAM("Found neighbor (idx: " << count << ") on topic " << info.name);
-      agent_setup(count, 0, false);
+      agent_setup(count, AType::V, false);
       subs_neighbor.push_back(
         nh.subscribe<nav_msgs::Odometry>(info.name, 10, boost::bind(&NHTTCNode::NeighborCallback, this, _1, count))
       );
@@ -363,13 +363,13 @@ void NHTTCNode::setup()
 {
   steer_limit = 0.5*M_PI; 
 
-  wheelbase = agents[own_index].prob->params.wheelbase;
-  agents[own_index].prob->params.safety_radius = safety_radius;
-  agents[own_index].prob->params.steer_limit = steer_limit;
-  agents[own_index].prob->params.vel_limit = speed_lim;
-  agents[own_index].prob->params.u_lb = allow_reverse ? Eigen::Vector2f(-speed_lim, -steer_limit) : Eigen::Vector2f(0, -steer_limit);
-  agents[own_index].prob->params.u_ub = Eigen::Vector2f(speed_lim, steer_limit);
-  agents[own_index].prob->params.max_ttc = max_ttc;
+  wheelbase = agents[own_index].GetProblem()->params.wheelbase;
+  agents[own_index].GetProblem()->params.safety_radius = safety_radius;
+  agents[own_index].GetProblem()->params.steer_limit = steer_limit;
+  agents[own_index].GetProblem()->params.vel_limit = speed_lim;
+  agents[own_index].GetProblem()->params.u_lb = allow_reverse ? Eigen::Vector2f(-speed_lim, -steer_limit) : Eigen::Vector2f(0, -steer_limit);
+  agents[own_index].GetProblem()->params.u_ub = Eigen::Vector2f(speed_lim, steer_limit);
+  agents[own_index].GetProblem()->params.max_ttc = max_ttc;
 
   ROS_INFO("carrot_goal_ratio: %f",carrot_goal_ratio);
   ROS_INFO("max_ttc: %f", max_ttc);
@@ -399,8 +399,8 @@ void NHTTCNode::plan()
   Eigen::VectorXf controls = Eigen::VectorXf::Zero(2);
 
   // Check if we are within set distance to goal. If so stop planning until next goal is found
-  Eigen::Vector2f agent_state = agents[own_index].prob->params.x_0.head(2);
-  float goal_dist = (agents[own_index].goal - agent_state).norm();
+  Eigen::Vector2f agent_state = agents[own_index].GetProblem()->params.x_0.head(2);
+  float goal_dist = (agents[own_index].GetGoal() - agent_state).norm();
 
   ROS_INFO_STREAM_THROTTLE(1, "Goal Distance: " << goal_dist << " / " << cutoff_dist);
 

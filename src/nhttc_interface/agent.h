@@ -24,22 +24,33 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sgd/ttc_sgd_problem.h>
 #include <Eigen/Core>
 
+/**
+ * Different types for the different kinematics of the neighbors
+*/
 enum class AType { V, A, DD, ADD, CAR, ACAR };
 
+/**
+ * High level class for an NH-TTC agent
+*/
 class Agent {
+private:
+  TTCSGDProblem* _prob;
+  SGDOptParams _opt_params;
+
+  int _u_dim, _x_dim;
+  bool _reactive, _controlled, _done = false;
+
+  AType _a_type;
+  std::string _type_name;
+  Eigen::Vector2f _goal;
+
 public:
-  TTCSGDProblem* prob;
-  SGDOptParams opt_params;
-  int u_dim, x_dim;
-  bool reactive, controlled, done = false;
-  AType a_type;
-  std::string type_name;
-  Eigen::Vector2f goal;
+  Agent(AType kinematics, bool is_controlled, bool is_reactive, Eigen::VectorXf x_0, Eigen::VectorXf g, SGDOptParams opt_params_in);
 
-  Agent(SGDOptParams opt_params_in);
-  Agent(std::vector<std::string> parts, SGDOptParams opt_params_in);
+  inline TTCSGDProblem* GetProblem() { return _prob; }
+  inline bool isReactive() { return _reactive; }
+  inline Eigen::Vector2f GetGoal() { return _goal; }
 
-  // Added for easier interfacing
   void SetPlanTime(float agent_plan_time_ms);
 
   // Pass in own index if agent is itself one of the obstacles passed in, otherwise pass in -1

@@ -178,26 +178,25 @@ std::vector<std::string> GetAgentParts(int agent_type, Eigen::VectorXf &pos,
 std::vector<TTCObstacle *> BuildObstacleList(std::vector<Agent> agents) {
   std::vector<TTCObstacle *> obsts;
   for (size_t a_idx = 0; a_idx < agents.size(); ++a_idx) {
-    obsts.push_back(agents[a_idx].prob->CreateObstacle());
+    obsts.push_back(agents[a_idx].GetProblem()->CreateObstacle());
   }
   return obsts;
 }
 
 void SetAgentObstacleList(Agent &a, size_t a_idx,
                           std::vector<TTCObstacle *> obsts) {
-  a.prob->params.obsts.clear();
-  if (!a.reactive) {
+  a.GetProblem()->params.obsts.clear();
+  if (!a.isReactive()) {
     return;
   }
   for (size_t b_idx = 0; b_idx < obsts.size(); ++b_idx) {
     if (b_idx == a_idx) {
       continue;
     }
-    float dist =
-        (a.prob->params.x_0.head<2>() - obsts[b_idx]->p.head<2>()).norm();
+    float dist = (a.GetProblem()->params.x_0.head<2>() - obsts[b_idx]->p.head<2>()).norm();
     // Ignore any obstacles that cannot interact with us within our ttc horizon
-    if (dist < 2.0 * a.prob->params.vel_limit * a.prob->params.max_ttc) {
-      a.prob->params.obsts.push_back(obsts[b_idx]);
+    if (dist < 2.0 * a.GetProblem()->params.vel_limit * a.GetProblem()->params.max_ttc) {
+      a.GetProblem()->params.obsts.push_back(obsts[b_idx]);
     }
   }
 }
