@@ -62,16 +62,20 @@ add_executable(${PROJECT_NAME}_node src/nhttc_node.cpp)
 ## same as for the library above
 add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-add_library(nhttc_interface src/nhttc_interface/nhttc_interface.cpp)
-add_library(sgd 
-  src/sgd/ttc_sgd_problem_models.cpp
-  src/sgd/ttc_sgd_problem.cpp
-  src/sgd/ttc_obstacles.cpp
-  src/sgd/sgd.cpp
-)
+add_subdirectory(src/nhttc_interface)
+add_subdirectory(src/sgd)
+# add_library(nhttc_interface 
+#   src/nhttc_interface/nhttc_interface.cpp
+#   src/nhttc_interface/util.cpp
+# )
 
-target_link_libraries(sgd Eigen3::Eigen)
-target_link_libraries(nhttc_interface Eigen3::Eigen)
+# add_library(sgd 
+#   src/sgd/ttc_sgd_problem_models.cpp
+#   src/sgd/ttc_sgd_problem.cpp
+#   src/sgd/ttc_obstacles.cpp
+#   src/sgd/sgd.cpp
+# )
+
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node

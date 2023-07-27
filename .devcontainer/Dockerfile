@@ -4,6 +4,7 @@ FROM ros:noetic-ros-base
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-noetic-tf2 \
     libeigen3-dev \
+    libspdlog-dev \
     git
 
 RUN mkdir -p /opt/nhttc_ws/src/NHTTC
