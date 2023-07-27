@@ -19,6 +19,8 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#include <spdlog/spdlog.h>
+
 #include <fstream>
 
 #include "util.h"
@@ -79,11 +81,6 @@ void SetBoundsCAR(TTCParams &params) {
 void SetBoundsACAR(TTCParams &params) {
   params.u_lb = Eigen::Vector2f(-1.0f, -0.25f * M_PI);
   params.u_ub = Eigen::Vector2f(1.0f, 0.25f * M_PI);
-}
-
-void SetBoundsMUSHR(TTCParams &params) {
-  params.u_lb = Eigen::Vector2f(-0.3f, -0.25f * M_PI);
-  params.u_ub = Eigen::Vector2f(0.3f, 0.25f * M_PI);
 }
 
 int GetVector(const std::vector<std::string> &parts, int offset, int v_len,
@@ -150,13 +147,8 @@ std::vector<std::string> GetAgentParts(int agent_type, Eigen::VectorXf &pos,
     p_dim = 5;
     u_dim = 2;
     break;
-  case 6:
-    type = "mushr";
-    p_dim = 3;
-    u_dim = 2;
-    break;
   default:
-    std::cerr << "Invalid virtual agent type: " << agent_type << std::endl;
+    spdlog::error("Invalid virtual agent type: {}", agent_type);
     exit(-1);
   }
   Eigen::VectorXf p = Eigen::VectorXf::Zero(p_dim);

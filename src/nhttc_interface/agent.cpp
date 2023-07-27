@@ -67,18 +67,6 @@ Agent::Agent(std::vector<std::string> parts, SGDOptParams opt_params_in) {
     x_dim = 5;
     SetBoundsACAR(params);
     prob = new ACARTTCSGDProblem(params);
-  } else if (parts[0] == "mushr") {
-    a_type = AType::MUSHR;
-    u_dim = 2;
-    x_dim = 3;
-    SetBoundsMUSHR(params);
-
-    // Additional parameter config for MuSHR
-    params.radius = 0.2;
-    params.safety_radius = 0.05;
-    params.max_ttc = 20; // std::min(6/max_velocity,20);
-
-    prob = new MUSHRTTCSGDProblem(params);
   } else {
     spdlog::error("Unsupported Dynamics Model: {}", parts[0]);
     exit(-1);
@@ -197,9 +185,7 @@ void Agent::SetStop() {
     // Nothing to do
   } else if (a_type == AType::ACAR) {
     prob->params.x_0[3] = 0.0f;
-  } else if (a_type == AType::MUSHR) {
-    // Nothing to do
-  }
+  } 
 }
 
 void Agent::PrepareSGDParams() {

@@ -3,7 +3,8 @@
 #include <Eigen/Core>
 
 #include <sgd/ttc_sgd_problem.h>
-#include "nhttc_interface.h"
+#include <nhttc_interface/util.h>
+#include <nhttc_interface/agent.h>
 
 class NHTTCNode
 {

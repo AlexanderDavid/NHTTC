@@ -24,7 +24,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sgd/ttc_sgd_problem.h>
 #include <Eigen/Core>
 
-enum class AType { V, A, DD, ADD, CAR, ACAR, MUSHR };
+enum class AType { V, A, DD, ADD, CAR, ACAR };
 
 class Agent {
 public:

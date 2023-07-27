@@ -47,11 +47,12 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+# # include
   ${catkin_INCLUDE_DIRS}
-  src/nhttc_interface
+#   src/nhttc_interface
   src
 )
+
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
@@ -59,23 +60,10 @@ include_directories(
 add_executable(${PROJECT_NAME}_node src/nhttc_node.cpp)
 
 ## Add cmake target dependencies of the executable
-## same as for the library above
 add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 add_subdirectory(src/nhttc_interface)
 add_subdirectory(src/sgd)
-# add_library(nhttc_interface 
-#   src/nhttc_interface/nhttc_interface.cpp
-#   src/nhttc_interface/util.cpp
-# )
-
-# add_library(sgd 
-#   src/sgd/ttc_sgd_problem_models.cpp
-#   src/sgd/ttc_sgd_problem.cpp
-#   src/sgd/ttc_obstacles.cpp
-#   src/sgd/sgd.cpp
-# )
-
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node

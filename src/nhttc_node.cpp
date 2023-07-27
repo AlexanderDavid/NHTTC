@@ -13,7 +13,6 @@
 #include "visualization_msgs/Marker.h"
 
 #include "nhttc_node.h"
-#include "nhttc_interface.h"
 
 
 void NHTTCNode::viz_publish() 

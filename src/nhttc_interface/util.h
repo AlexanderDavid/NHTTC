@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <Eigen/Core>
 
+#include "agent.h"
+
 #include <sgd/ttc_sgd_problem.h>
 
 std::vector<std::string> GetParts(std::string s, char delim);
@@ -34,7 +36,6 @@ void SetBoundsDD(TTCParams &params);
 void SetBoundsADD(TTCParams &params);
 void SetBoundsCAR(TTCParams &params);
 void SetBoundsACAR(TTCParams &params);
-void SetBoundsMUSHR(TTCParams &params);
 
 int GetVector(const std::vector<std::string>& parts, int offset, int v_len, Eigen::VectorXf& v);
 
