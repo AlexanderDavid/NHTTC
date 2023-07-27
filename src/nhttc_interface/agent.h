@@ -52,7 +52,8 @@ public:
   inline bool isReactive() { return _reactive; }
   inline Eigen::Vector2f GetGoal() { return _goal; }
   
-  inline SetLastUpdated(double time) { _last_update = time; };
+  inline void SetLastUpdated(double time) { _last_update = time; };
+  inline double GetLastUpdated() { return _last_update; }
 
   void SetPlanTime(float agent_plan_time_ms);
 

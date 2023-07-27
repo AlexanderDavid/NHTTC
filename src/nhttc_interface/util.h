@@ -43,4 +43,4 @@ std::vector<std::string> GetAgentParts(int agent_type, Eigen::VectorXf& pos, boo
 std::vector<std::string> GetAgentParts(int agent_type, Eigen::VectorXf& pos, bool reactive, Eigen::Vector2f& goal);
 
 void ConstructGlobalParams(SGDOptParams *opt_params);
-std::vector<TTCObstacle*> BuildObstacleList(std::vector<Agent> agents);
+std::vector<TTCObstacle *> BuildObstacleList(std::vector<Agent> agents, size_t own_idx, double allowable_timeslip);

@@ -43,7 +43,7 @@ public:
   bool allow_reverse;
   bool adaptive_lookahead;
 
-  std::vector<TTCObstacle*> obstacles = BuildObstacleList(agents);
+  std::vector<TTCObstacle*> obstacles{};
 
   ros::master::V_TopicInfo master_topics;
 

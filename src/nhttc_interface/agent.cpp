@@ -74,10 +74,13 @@ void Agent::SetObstacles(std::vector<TTCObstacle *> obsts, size_t own_index) {
   if (!_reactive) {
     return;
   }
+
   for (size_t b_idx = 0; b_idx < obsts.size(); ++b_idx) {
+    // Don't include self in obstacles
     if (b_idx == own_index) {
       continue;
     }
+
     float dist =
         (_prob->params.x_0.head<2>() - obsts[b_idx]->p.head<2>()).norm();
     // Ignore any obstacles that cannot interact with us within our ttc horizon

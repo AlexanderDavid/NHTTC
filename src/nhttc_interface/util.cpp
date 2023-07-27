@@ -175,9 +175,20 @@ std::vector<std::string> GetAgentParts(int agent_type, Eigen::VectorXf &pos,
 
   return parts;
 }
-std::vector<TTCObstacle *> BuildObstacleList(std::vector<Agent> agents) {
+
+std::vector<TTCObstacle *> BuildObstacleList(std::vector<Agent> agents, size_t own_idx, double allowable_timeslip) {
   std::vector<TTCObstacle *> obsts;
+
   for (size_t a_idx = 0; a_idx < agents.size(); ++a_idx) {
+    // Check that the difference between the last pose update for the ego agent
+    // is within limits compared to other pose updates. 
+    double timeslip = agents[a_idx].GetLastUpdated() - agents[own_idx].GetLastUpdated();
+    if (timeslip > allowable_timeslip)
+    {
+      spdlog::warn("Agent at idx: {} ignored due to large timeslip ({} seconds)", a_idx, timeslip);
+      continue;
+    }
+
     obsts.push_back(agents[a_idx].GetProblem()->CreateObstacle());
   }
   return obsts;

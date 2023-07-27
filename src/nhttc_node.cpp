@@ -393,7 +393,7 @@ void NHTTCNode::plan()
   // create obstacle list.
   if(agents.size() == 0) return;
 
-  obstacles = BuildObstacleList(agents);
+  obstacles = BuildObstacleList(agents, own_index, 0.5);
   agents[own_index].SetPlanTime(solver_time); //20 ms planning window TODO: see if this only needs to be done once
   agents[own_index].SetObstacles(obstacles, size_t(own_index)); // set the obstacles 
 
