@@ -36,6 +36,8 @@ public:
   float safety_radius;
   SGDOptParams global_params;
 
+  double pose_timeout;
+
   std::vector<Agent> agents; //all agents
 
   float speed_lim = 0.46f;

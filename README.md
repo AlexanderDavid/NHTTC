@@ -16,5 +16,5 @@ $ catkin_make
 - [ ] Support multiple waypoints in optimization
 - [ ] Documentation for adding new kinematics model
     - [ ] Documentation in general
-- [ ] Remove neighbor with message timeout
+- [x] Remove neighbor with message timeout
 - [ ] Write a plugin for MoveBase
