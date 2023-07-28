@@ -150,9 +150,11 @@ Eigen::VectorXf SGD::SolveSGD(SGDProblem *p,
   if (params.projectedSGD || params.projectFinal) {
     p->ProjConstr(x_best);
   }
+
   if (best_cost != nullptr) {
     (*best_cost) = cost_best;
   }
+
   return x_best;
 }
 

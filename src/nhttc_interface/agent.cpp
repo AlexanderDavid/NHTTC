@@ -118,6 +118,9 @@ Eigen::VectorXf Agent::UpdateControls() {
 
   spdlog::debug("New Control: {}, {}", u_new[0], u_new[1]);
 
+  // TODO: when stable check if this is a bug. shouldn't this be
+  // _prob->params.u_curr += 0.5f * (u_new - _prob->params.u_curr)
+  // if the idea is reciprocity?
   _prob->params.u_curr = 0.5f * (u_new + _prob->params.u_curr); // Reciprocity
   return _prob->params.u_curr;
 }

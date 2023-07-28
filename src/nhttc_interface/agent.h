@@ -27,7 +27,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /**
  * Different types for the different kinematics of the neighbors
 */
-enum class AType { V, A, DD, ADD, CAR, ACAR };
+enum class AType { 
+  V = 0,
+  A = 1,
+  DD = 2,
+  ADD = 3,
+  CAR = 4,
+  ACAR = 5,
+};
 
 /**
  * High level class for an NH-TTC agent
@@ -48,12 +55,17 @@ private:
 public:
   Agent(AType kinematics, bool is_controlled, bool is_reactive, Eigen::VectorXf x_0, Eigen::VectorXf g, SGDOptParams opt_params_in);
 
+  // This function absolutely reeks. Exposes the implementation but required
+  // because i'm too lazy to write getters and setters for all the information
+  // in the SGD problem.
   inline TTCSGDProblem* GetProblem() { return _prob; }
   inline bool isReactive() { return _reactive; }
   inline Eigen::Vector2f GetGoal() { return _goal; }
   
   inline void SetLastUpdated(double time) { _last_update = time; };
   inline double GetLastUpdated() { return _last_update; }
+
+  inline AType GetAType() { return _a_type; }
 
   void SetPlanTime(float agent_plan_time_ms);
 

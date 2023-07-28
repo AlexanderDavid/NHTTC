@@ -4,6 +4,7 @@
 #include "ros/ros.h"
 #include "ros/master.h"
 #include <boost/algorithm/string.hpp>
+#include <spdlog/spdlog.h>
 
 #include "nav_msgs/Odometry.h"
 #include "geometry_msgs/Twist.h"
@@ -11,6 +12,7 @@
 #include "geometry_msgs/PoseStamped.h"
 #include "visualization_msgs/MarkerArray.h"
 #include "visualization_msgs/Marker.h"
+#include "nhttc_ros/AgentState.h"
 
 #include "nhttc_node.h"
 
@@ -128,7 +130,30 @@ void NHTTCNode::viz_publish()
 
 void NHTTCNode::publish_nhttc_pose()
 {
-    
+    // Publish the current state of the NH-TTC agent, this not to be used
+    // for any actual localization or included further down the pipeline.
+    // This is used internally by NH-TTC to be able to more accurately
+    // optimize based on the specific kinematics of the neighbors.
+    nhttc_ros::AgentState msg{};
+
+    msg.header.stamp = ros::Time::now();
+
+    msg.kinematics = (uint8_t) agents[own_index].GetAType();
+
+    Eigen::VectorXf x_curr = agents[own_index].GetProblem()->params.x_0;
+    std::vector<float> xvec(x_curr.data(), x_curr.data() + x_curr.size());
+
+    Eigen::VectorXf u_curr = agents[own_index].GetProblem()->params.u_curr;
+    std::vector<float> uvec(u_curr.data(), u_curr.data() + u_curr.size());
+
+    msg.state = xvec;
+    msg.control = uvec;
+
+    // Could also fill in the nav_msgs/Odometry-like portion of the message
+    // here but I'm not gonna use that at all, just future proofing when 
+    // defining message type
+
+    pub_nhttc_pose.publish(msg);
 }
 
 /**
@@ -203,6 +228,21 @@ void NHTTCNode::NeighborCallback(const nav_msgs::Odometry::ConstPtr &msg, int ne
     agents[neighbor_idx].SetLastUpdated(msg->header.stamp.toSec());
 }
 
+void NHTTCNode::NHTTCNeighborCallback(const nhttc_ros::AgentState::ConstPtr &msg, int neighbor_idx)
+{
+    // This is going to be dangerious since we are passing arrays
+    // of unknown size but it SHOULD work. If the code errors here
+    // then one of the agents is publishing a control or state array
+    // of different size then they're using
+
+    Eigen::VectorXf x{msg->state.data(), msg->state.size()};
+    Eigen::VectorXf u{msg->control};
+
+    agents[neighbor_idx].SetEgo(x);
+    agents[neighbor_idx].SetControls(u);
+    agents[neighbor_idx].SetLastUpdated(msg->header.stamp.toSec());
+}
+
 /**
  * Single-goal callback
  *
@@ -260,13 +300,47 @@ void NHTTCNode::check_new_agents(ros::NodeHandle &nh)
             agent_setup(count, AType::DD, true);
         }
 
-        if (info.name.find(neighbor_topic_root) != std::string::npos && std::find(topics_neighbor.begin(), topics_neighbor.end(), info.name) == topics_neighbor.end())
+        else if (info.name.find(neighbor_topic_root) != std::string::npos &&
+                 std::find(topics_neighbor.begin(), topics_neighbor.end(), info.name) == topics_neighbor.end() &&
+                 info.datatype == "nav_msgs/Odometry")
         {
             count++;
-            ROS_INFO_STREAM("Found neighbor (idx: " << count << ") on topic " << info.name);
+            ROS_INFO_STREAM("Found nav_msgs neighbor (idx: " << count << ") on topic " << info.name);
             agent_setup(count, AType::V, false);
             subs_neighbor.push_back(
                 nh.subscribe<nav_msgs::Odometry>(info.name, 10, boost::bind(&NHTTCNode::NeighborCallback, this, _1, count)));
+            topics_neighbor.push_back(info.name);
+        }
+
+        // The way this logic is implemented the agents will not operate in mixed environments.
+        // More specifically, the agent can only listen on a single topic root, so there should
+        // be no duplicates. This needs to be fixed if we want to have some agents using
+        // NH-TTC and some not.
+        else if (info.name.find(neighbor_topic_root) != std::string::npos &&
+                 std::find(topics_neighbor.begin(), topics_neighbor.end(), info.name) == topics_neighbor.end() &&
+                 info.datatype == "nhttc_ros/AgentState")
+        {
+            count++;
+            ROS_INFO_STREAM("Found nhttc_ros neighbor (idx: " << count << ") on topic " << info.name);
+
+            // We now need to wait for the next message on this topic to come in so that we can
+            // get the dynamics. We will wait for 5 seconds for this message, terminating and
+            // skipping this topic if no message is heard.
+            nhttc_ros::AgentStateConstPtr msg = ros::topic::waitForMessage<nhttc_ros::AgentState>(
+                info.name, nh, ros::Duration(5));
+
+            if (msg == nullptr)
+            {
+                spdlog::warn("Could not hear odometry on {}, skipping.", info.name);
+                continue;
+            }
+
+            agent_setup(count, (AType) msg->kinematics, false);
+            subs_neighbor.push_back(
+                nh.subscribe<nhttc_ros::AgentState>(
+                    info.name,
+                    10,
+                    boost::bind(&NHTTCNode::NHTTCNeighborCallback, this, _1, count)));
             topics_neighbor.push_back(info.name);
         }
     }
@@ -425,8 +499,12 @@ void NHTTCNode::plan()
 
     float speed = controls[0];          // speed in m/s
     float steering_angle = controls[1]; // steering angle in radians. +ve is left. -ve is right
-    ROS_DEBUG_STREAM("New control: " << speed << ", " << steering_angle);
+
+    spdlog::debug("New control: {}, {}", speed, steering_angle);
+
     send_commands(speed, steering_angle); // just sending out anything for now;
+    publish_nhttc_pose();
+
     return;
 }
 

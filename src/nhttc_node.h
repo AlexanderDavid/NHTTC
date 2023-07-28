@@ -2,6 +2,8 @@
 
 #include <Eigen/Core>
 
+#include <nhttc_ros/AgentState.h>
+
 #include <nhttc_interface/agent.h>
 #include <sgd/ttc_sgd_problem.h>
 #include <nhttc_interface/util.h>
@@ -14,7 +16,7 @@ public:
   std::vector<std::string> topics_neighbor;
 
   ros::Subscriber sub_goal, sub_wp, sub_pose;
-  ros::Publisher pub_cmd, pub_viz;
+  ros::Publisher pub_cmd, pub_viz, pub_nhttc_pose;
 
   std::string cmd_vel_topic, odom_topic, neighbor_topic_root;
 
@@ -55,6 +57,7 @@ public:
   void rpy_from_quat(float rpy[3],const nav_msgs::Odometry::ConstPtr& msg);
   void send_commands(float speed, float steer);
   void check_new_agents(ros::NodeHandle &nh);
+  void publish_nhttc_pose();
   void viz_publish();
   void setup();
   void plan();
@@ -62,4 +65,5 @@ public:
   void GoalCallback(const geometry_msgs::PoseStamped::ConstPtr& msg);
   void PoseCallback(const nav_msgs::Odometry::ConstPtr& msg);
   void NeighborCallback(const nav_msgs::Odometry::ConstPtr& msg, int neighbor_idx);
+  void NHTTCNeighborCallback(const nhttc_ros::AgentState::ConstPtr& msg, int neighbor_idx);
 };

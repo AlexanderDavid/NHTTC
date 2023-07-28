@@ -1,0 +1,62 @@
+#! /usr/bin/env python3
+
+from functools import partial
+from enum import Enum
+from typing import List, Tuple
+
+import rospy
+
+from nav_msgs.msg import Odometry
+from nhttc_ros.msg import AgentState
+
+class RepeaterType(Enum):
+    VELOCITY=1
+
+
+class OdometryRepeater:
+    def __init__(self, odometry_topic_mapper: List[Tuple[str, str, RepeaterType]]):
+        self._subs = []
+        self._pubs = []
+
+        for odom_topic, nhttc_topic, rt in odometry_topic_mapper:
+            if rt == RepeaterType.VELOCITY:
+                self._subs.append(
+                    rospy.Subscriber(
+                        odom_topic,
+                        Odometry,
+                        partial(self.__odom_cb_velocity, publisher_idx=len(self._subs)),
+                        queue_size=10
+                    )
+                )
+            else:
+                print(f"Invalid repeater type ({rt}) for topic {odom_topic}... Skipping.")
+                continue
+
+            self._pubs.append(
+                rospy.Publisher(
+                    nhttc_topic,
+                    AgentState,
+                    queue_size=10
+                )
+            )
+
+    def __odom_cb_velocity(self, msg: Odometry, publisher_idx: int):
+        as_msg = AgentState()
+        as_msg.header = msg.header
+
+        as_msg.kinematics = AgentState.V
+        as_msg.state = [msg.pose.pose.position.x, msg.pose.pose.position.y]
+        as_msg.control = [msg.twist.twist.linear.x, msg.twist.twist.linear.y]
+
+        as_msg.child_frame_id = msg.child_frame_id
+        as_msg.pose = msg.pose
+        as_msg.twist = msg.twist
+
+        self._pubs[publisher_idx].publish(as_msg)
+
+if __name__ == "__main__":
+    rospy.init_node("nhttc_odometry_repeater")
+    
+    odom_repeater = OdometryRepeater([("/odom", "/nhttc/odom", RepeaterType.VELOCITY)])
+
+    rospy.spin()

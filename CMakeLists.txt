@@ -19,6 +19,17 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
+find_package(genmsg)
+
+######################
+## Message Building ##
+######################
+add_message_files(
+  DIRECTORY msg
+  FILES AgentState.msg
+)
+
+generate_messages(DEPENDENCIES geometry_msgs)
 
 ###################################
 ## catkin specific configuration ##

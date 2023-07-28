@@ -44,6 +44,8 @@ struct TTCParams {
   float k_dist = 0.1f;
   float dist_smooth = -10.0f;
 
+  // Why in gods green earth is this x_0 for the current
+  // position not carried over to u_curr???
   Eigen::VectorXf x_0;              // current position
   Eigen::VectorXf u_curr;           // current controls
   std::vector<TTCObstacle *> obsts; // obstacle list
