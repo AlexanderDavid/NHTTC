@@ -356,62 +356,20 @@ NHTTCNode::NHTTCNode(ros::NodeHandle &nh)
     own_index = -1;
     goal_received = false; // start with the assumption that the car has no goal
 
-    if (not nh.getParam("/solver_time", solver_time))
-    {
-        solver_time = 10; // 10 ms solver time for each agent.
-    }
-    if (not nh.getParam("sim", simulation))
-    {
-        simulation = true; // run in simulation by default.
-    }
-    if (not nh.getParam("max_agents", num_agents_max))
-    {
-        num_agents_max = 8; // default maximum number of agents
-    }
-    if (not nh.getParam("/carrot_goal_ratio", carrot_goal_ratio))
-    {
-        carrot_goal_ratio = 1.0f; // default distance to the ever-changing goal
-    }
-    if (not nh.getParam("/max_ttc", max_ttc))
-    {
-        max_ttc = 6.0f; // default ttc
-    }
-    if (not nh.getParam("/obey_time", obey_time))
-    {
-        obey_time = false; // false by default
-    }
-    if (not nh.getParam("/allow_reverse", allow_reverse))
-    {
-        allow_reverse = true; // true by default (default behavior is to not have any constraints on the nav engine)
-    }
-    if (not nh.getParam("/adaptive_lookahead", adaptive_lookahead))
-    {
-        adaptive_lookahead = false;
-    }
-    if (not nh.getParam("/safety_radius", safety_radius))
-    {
-        safety_radius = 0.1f;
-    }
-    if (not nh.getParam("/odom_topic", odom_topic))
-    {
-        odom_topic = "/odom";
-    }
-    if (not nh.getParam("/cmd_vel_topic", cmd_vel_topic))
-    {
-        cmd_vel_topic = "/cmd_vel";
-    }
-    if (not nh.getParam("/cutoff_dist", cutoff_dist))
-    {
-        cutoff_dist = 0.1f;
-    }
-    if (not nh.getParam("/neighbor_topic_root", neighbor_topic_root))
-    {
-        neighbor_topic_root = "/odometry/tracker_";
-    }
-    if (not nh.getParam("/pose_timeout", pose_timeout))
-    {
-        pose_timeout = 0.5;
-    }
+    solver_time         = nh.param("/solver_time", 10);
+    simulation          = nh.param("/sim", true); // Could be big
+    num_agents_max      = nh.param("max_agents", 8);
+    carrot_goal_ratio   = nh.param("/carrot_goal_ratio", 1.0f);
+    max_ttc             = nh.param("/max_ttc", 6.0f);
+    obey_time           = nh.param("/obey_time", false); // false by default
+    allow_reverse       = nh.param("/allow_reverse", true); // true by default (default behavior is to not have any constraints on the nav engine)
+    adaptive_lookahead  = nh.param("/adaptive_lookahead", false);
+    safety_radius       = nh.param("/safety_radius", 0.1f);
+    odom_topic          = nh.param("/odom_topic", "/odom");
+    cmd_vel_topic       = nh.param("/cmd_vel_topic", "/cmd_vel");
+    cutoff_dist         = nh.param("/cutoff_dist", 0.1f);
+    neighbor_topic_root = nh.param("/neighbor_topic_root", "/odometry/tracker_");
+    pose_timeout        = nh.param("/pose_timeout", 0.5);
 
     ConstructGlobalParams(&global_params);
     count = -1;
