@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 import argparse
 from math import cos, sin
+from sys import argv
 
 import rospy
 from rospy.timer import TimerEvent
@@ -66,24 +67,19 @@ class DiffDriveRobot(SimpleRobot):
         self.set_ros_state(odom)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser("simple_robot") 
-    parser.add_argument("odom_topic", type=str)
-    parser.add_argument("cmd_vel_topic", type=str)
-    parser.add_argument("--type", default="DD", choices=["DD"])
-    parser.add_argument("--freq", default=60, type=float)
-
-    args = parser.parse_args()
+    odom_topic = rospy.get_param("odom_topic", "/odom")
+    cmd_vel_topic = rospy.get_param("cmd_vel_topic", "/cmd_vel")
+    atype = rospy.get_param("type", "DD")
+    freq = rospy.get_param("freq", 60.0)
 
     rospy.init_node("simple_robot", anonymous=True)
 
-    print(args.type)
-
-    if args.type == "DD":
+    if atype == "DD":
         rospy.logdebug("Made diff drive robot.")
         robot = DiffDriveRobot(
-            args.odom_topic,
-            args.cmd_vel_topic,
-            1 / args.freq
+            odom_topic,
+            cmd_vel_topic,
+            1 / freq
         )
 
     rospy.spin()
