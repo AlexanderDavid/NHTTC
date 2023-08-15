@@ -64,8 +64,8 @@ void SetBoundsA(TTCParams &params) {
 }
 
 void SetBoundsDD(TTCParams &params) {
-  // params.u_lb = Eigen::Vector2f(-0.3f, -1.0f);
-  // params.u_ub = Eigen::Vector2f(0.3f, 1.0f);
+  params.u_lb = Eigen::Vector2f(-0.4f, -1.0f);
+  params.u_ub = Eigen::Vector2f(0.4f, 1.0f);
 }
 
 void SetBoundsADD(TTCParams &params) {

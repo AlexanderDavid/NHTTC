@@ -53,41 +53,57 @@ private:
   Eigen::Vector2f _goal;
 
 public:
+
+  
+  /**
+   * @brief Create a new agent for use in planning 
+   * @param kinematics Kinematics of the agent
+   * @param is_controlled If the agent is being controlled by the class
+   * @param is_reactive If the agent is going to react sensibly
+   * @param x_0 Initial state
+   * @param g Initial goal
+   * @param opt_params_in SGD params
+   */
   Agent(AType kinematics, bool is_controlled, bool is_reactive, Eigen::VectorXf x_0, Eigen::VectorXf g, SGDOptParams opt_params_in);
 
-  // This function absolutely reeks. Exposes the implementation but required
-  // because i'm too lazy to write getters and setters for all the information
-  // in the SGD problem.
+  /**
+   * @note This function absolutely reeks. Exposes the implementation but required
+   * because i'm too lazy to write getters and setters for all the information
+   * in the SGD problem.
+   */
   inline TTCSGDProblem* GetProblem() { return _prob; }
+
   inline bool isReactive() { return _reactive; }
   inline Eigen::Vector2f GetGoal() { return _goal; }
+  inline AType GetAType() { return _a_type; }
+  inline float getGoalDistance() { return (_prob->GetCollisionCenter(_prob->params.x_0) - _goal).norm(); }
   
   inline void SetLastUpdated(double time) { _last_update = time; };
   inline double GetLastUpdated() { return _last_update; }
 
-  inline AType GetAType() { return _a_type; }
-
   void SetPlanTime(float agent_plan_time_ms);
 
-  // Pass in own index if agent is itself one of the obstacles passed in, otherwise pass in -1
+  /**
+   * @brief Set the obstacles to plan around
+   * @param obsts Obstacles including ego
+   * @param own_index Ego's index in the obstacle list
+   */
   void SetObstacles(std::vector<TTCObstacle*> obsts, size_t own_index);
 
-  // Update Goal by passing in a new vector. If unchanged, pass in NULL. Calling the function will update goal and pass it into SGD
-  void UpdateGoal(Eigen::Vector2f new_goal);
+  void SetGoal(Eigen::Vector2f new_goal);
+  void SetState(Eigen::VectorXf new_x);
+  void SetControls(Eigen::VectorXf new_controls);
 
-  // Sets ego of Agent
-  // Note: For the MuSHR car, x is [x, y, heading_angle] and u is [velocity, steering_angle]
-  void SetEgo(Eigen::VectorXf new_x);
-  void SetControls(Eigen::VectorXf new_controls); //CHANGED
+  /**
+   * @brief Calcualte and update controls for ego agent
+   * 
+   * @returns New controls
+  */
+  Eigen::VectorXf CalculateControls();
 
-  // Controls can be extracted with agent->prob.params.ucurr at any time. This function runs the update and also returns the controls.
-  // Note: For the MuSHR car, x is [x, y, heading_angle] and u is [velocity, steering_angle]
-  Eigen::VectorXf UpdateControls();
+  void PrepareSGDParams();
 
-  // Original From nhttc_utils
+private:
   float GetBestGoalCost(float dt, const Eigen::Vector2f& pos);
   float GetBestCost();
-  bool AtGoal();
-  void SetStop();
-  void PrepareSGDParams();
 };

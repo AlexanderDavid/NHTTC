@@ -90,11 +90,11 @@ void Agent::SetObstacles(std::vector<TTCObstacle *> obsts, size_t own_index) {
   }
 }
 
-void Agent::UpdateGoal(Eigen::Vector2f new_goal) {
+void Agent::SetGoal(Eigen::Vector2f new_goal) {
   _goal = new_goal;
 }
 
-void Agent::SetEgo(Eigen::VectorXf new_x) { 
+void Agent::SetState(Eigen::VectorXf new_x) { 
     _prob->params.x_0 = new_x;
 }
 
@@ -102,7 +102,7 @@ void Agent::SetControls(Eigen::VectorXf new_controls) {
   _prob->params.u_curr = new_controls;
 }
 
-Eigen::VectorXf Agent::UpdateControls() {
+Eigen::VectorXf Agent::CalculateControls() {
   // Push latest Agent goal to SGD params
   _prob->params.goals.clear();
   for (size_t i = 0; i < _prob->params.ts_goal_check.size(); ++i) {
@@ -144,26 +144,6 @@ float Agent::GetBestCost() {
         GetBestGoalCost(_prob->params.ts_goal_check[i], _prob->params.goals[i]);
   }
   return tot_cost;
-}
-
-bool Agent::AtGoal() {
-  return (_prob->GetCollisionCenter(_prob->params.x_0) - _goal).norm() < 0.05f;
-}
-
-void Agent::SetStop() {
-  _prob->params.u_curr = Eigen::VectorXf::Zero(_u_dim);
-  
-  switch(_a_type) {
-    case AType::A:
-      _prob->params.x_0.tail<2>() = Eigen::VectorXf::Zero(2);
-      break;
-    case AType::ADD:
-      _prob->params.x_0.tail<2>() = Eigen::VectorXf::Zero(2);
-      break;
-    case AType::ACAR:
-      _prob->params.x_0[3] = 0.0f;
-      break;
-  }
 }
 
 void Agent::PrepareSGDParams() {

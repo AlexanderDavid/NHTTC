@@ -16,7 +16,7 @@
 
 #include "nhttc_node.h"
 
-void NHTTCNode::viz_publish()
+void NHTTCNode::publishDebugViz()
 {
     visualization_msgs::MarkerArray marr{};
 
@@ -101,9 +101,9 @@ void NHTTCNode::viz_publish()
     {
         float future = ts * i;
 
-        agent_state[0] += agent_control[0] * std::cos(agent_state[2]) * ts;
-        agent_state[1] += agent_control[0] * std::sin(agent_state[2]) * ts;
-        agent_state[2] += agent_control[1] * ts;
+        agent_state[0] += agent_control[0] * std::cos(agent_state[2]) * future;
+        agent_state[1] += agent_control[0] * std::sin(agent_state[2]) * future;
+        agent_state[2] += agent_control[1] * future;
 
         geometry_msgs::Point pt{};
         pt.x = agent_state[0];
@@ -125,10 +125,10 @@ void NHTTCNode::viz_publish()
 
     marr.markers.push_back(path_marker);
 
-    pub_viz.publish(marr);
+    _pub_viz.publish(marr);
 }
 
-void NHTTCNode::publish_nhttc_pose()
+void NHTTCNode::publishNHTTCPose()
 {
     // Publish the current state of the NH-TTC agent, this not to be used
     // for any actual localization or included further down the pipeline.
@@ -163,7 +163,7 @@ void NHTTCNode::publish_nhttc_pose()
  *
  * @param takes the index value corresponding to that agent
  */
-void NHTTCNode::agent_setup(int i, AType agent_type, bool reactive)
+void NHTTCNode::agentSetup(int i, AType agent_type, bool reactive)
 {
     Eigen::Vector2f goal(0.0, 0.0);
     Eigen::VectorXf pos = Eigen::VectorXf::Zero(3);
@@ -176,7 +176,7 @@ void NHTTCNode::agent_setup(int i, AType agent_type, bool reactive)
  * Converts quaternion representation to euler angle representation. rpy = [roll, pitch, yaw]. rpy is in radians, following the ENU reference frame
  * @params euler angle array (float), pose message (geometry_msgs::PoseStamped)
  */
-void NHTTCNode::rpy_from_quat(float rpy[3], const nav_msgs::Odometry::ConstPtr &msg)
+void NHTTCNode::RPYFromQuat(float rpy[3], const nav_msgs::Odometry::ConstPtr &msg)
 {
     float q[4];
 
@@ -197,22 +197,22 @@ void NHTTCNode::rpy_from_quat(float rpy[3], const nav_msgs::Odometry::ConstPtr &
  *
  * @param takes the pose msg (geometry_msgs::PoseStamped) and the index value corresponding to the agent.
  */
-void NHTTCNode::PoseCallback(const nav_msgs::Odometry::ConstPtr &msg)
+void NHTTCNode::poseCallback(const nav_msgs::Odometry::ConstPtr &msg)
 {
     float rpy[3];
 
     Eigen::VectorXf x_o = Eigen::VectorXf::Zero(3);
-    rpy_from_quat(rpy, msg);
+    RPYFromQuat(rpy, msg);
 
     x_o[0] = msg->pose.pose.position.x;
     x_o[1] = msg->pose.pose.position.y;
     x_o[2] = rpy[2];
 
-    agents[own_index].SetEgo(x_o);
+    agents[own_index].SetState(x_o);
     agents[own_index].SetLastUpdated(msg->header.stamp.toSec());
 }
 
-void NHTTCNode::NeighborCallback(const nav_msgs::Odometry::ConstPtr &msg, int neighbor_idx)
+void NHTTCNode::neighborCallback(const nav_msgs::Odometry::ConstPtr &msg, int neighbor_idx)
 {
     Eigen::VectorXf x = Eigen::VectorXf::Zero(2);
     Eigen::VectorXf u = Eigen::VectorXf::Zero(2);
@@ -223,7 +223,7 @@ void NHTTCNode::NeighborCallback(const nav_msgs::Odometry::ConstPtr &msg, int ne
     u[0] = msg->twist.twist.linear.x;
     u[1] = msg->twist.twist.linear.y;
 
-    agents[neighbor_idx].SetEgo(x);
+    agents[neighbor_idx].SetState(x);
     agents[neighbor_idx].SetControls(u);
     agents[neighbor_idx].SetLastUpdated(msg->header.stamp.toSec());
 }
@@ -234,11 +234,13 @@ void NHTTCNode::NHTTCNeighborCallback(const nhttc_ros::AgentState::ConstPtr &msg
     // of unknown size but it SHOULD work. If the code errors here
     // then one of the agents is publishing a control or state array
     // of different size then they're using
+    std::vector<float> local_x = msg->state;
+    std::vector<float> local_u = msg->control;
 
-    Eigen::VectorXf x{msg->state.data(), msg->state.size()};
-    Eigen::VectorXf u{msg->control};
+    Eigen::VectorXf x = Eigen::Map<Eigen::VectorXf>(local_x.data(), local_x.size());
+    Eigen::VectorXf u = Eigen::Map<Eigen::VectorXf>(local_u.data(), local_u.size());
 
-    agents[neighbor_idx].SetEgo(x);
+    agents[neighbor_idx].SetState(x);
     agents[neighbor_idx].SetControls(u);
     agents[neighbor_idx].SetLastUpdated(msg->header.stamp.toSec());
 }
@@ -250,12 +252,12 @@ void NHTTCNode::NHTTCNeighborCallback(const nhttc_ros::AgentState::ConstPtr &msg
  *
  * @param goal point message (geometry_msgs::PoseStamped)
  */
-void NHTTCNode::GoalCallback(const geometry_msgs::PoseStamped::ConstPtr &msg)
+void NHTTCNode::goalCallback(const geometry_msgs::PoseStamped::ConstPtr &msg)
 {
     goal[0] = msg->pose.position.x;
     goal[1] = msg->pose.position.y;
 
-    agents[own_index].UpdateGoal(goal);
+    agents[own_index].SetGoal(goal);
 
     goal_received = true;
 }
@@ -267,49 +269,43 @@ void NHTTCNode::GoalCallback(const geometry_msgs::PoseStamped::ConstPtr &msg)
  *
  * @param speed (float, m/s) steering angle (float, radius)
  */
-void NHTTCNode::send_commands(float speed, float steer)
+void NHTTCNode::sendCommands(float speed, float steer)
 {
     geometry_msgs::Twist output_msg;
 
     output_msg.angular.z = steer;
     output_msg.linear.x = speed;
 
-    pub_cmd.publish(output_msg);
+    _pub_cmd.publish(output_msg);
 }
 
-/**
- * Check for new agents
- *
- * updates the agent array by finding published topics with topic type PoseStamped and unique car_name.
- * @params: ros::NodeHandle
- * @returns: None
- */
-void NHTTCNode::check_new_agents(ros::NodeHandle &nh)
+void NHTTCNode::checkNewAgents(ros::NodeHandle &nh)
 {
+    ros::master::V_TopicInfo master_topics;
     ros::master::getTopics(master_topics);
 
     for (ros::master::V_TopicInfo::iterator it = master_topics.begin(); it != master_topics.end(); it++)
     {
         const ros::master::TopicInfo &info = *it;
+        int count = agents.size();
 
         if (info.name == odom_topic && own_index == -1)
         {
-            count++;
-            ROS_INFO_STREAM("Found ego (idx: " << count << ") on topic " << info.name);
+            spdlog::info("Found ego (idx: {}) on {}", count, info.name);
             own_index = count;
-            agent_setup(count, AType::DD, true);
+            agentSetup(count, AType::DD, true);
+            setup();
         }
 
         else if (info.name.find(neighbor_topic_root) != std::string::npos &&
-                 std::find(topics_neighbor.begin(), topics_neighbor.end(), info.name) == topics_neighbor.end() &&
+                 std::find(_topics_neighbor.begin(), _topics_neighbor.end(), info.name) == _topics_neighbor.end() &&
                  info.datatype == "nav_msgs/Odometry")
         {
-            count++;
-            ROS_INFO_STREAM("Found nav_msgs neighbor (idx: " << count << ") on topic " << info.name);
-            agent_setup(count, AType::V, false);
-            subs_neighbor.push_back(
-                nh.subscribe<nav_msgs::Odometry>(info.name, 10, boost::bind(&NHTTCNode::NeighborCallback, this, _1, count)));
-            topics_neighbor.push_back(info.name);
+            spdlog::info("Found nav_msgs neighbor (idx: {}) on {}", count, info.name);
+            agentSetup(count, AType::V, false);
+            _subs_neighbor.push_back(
+                nh.subscribe<nav_msgs::Odometry>(info.name, 10, boost::bind(&NHTTCNode::neighborCallback, this, _1, count)));
+            _topics_neighbor.push_back(info.name);
         }
 
         // The way this logic is implemented the agents will not operate in mixed environments.
@@ -317,11 +313,10 @@ void NHTTCNode::check_new_agents(ros::NodeHandle &nh)
         // be no duplicates. This needs to be fixed if we want to have some agents using
         // NH-TTC and some not.
         else if (info.name.find(neighbor_topic_root) != std::string::npos &&
-                 std::find(topics_neighbor.begin(), topics_neighbor.end(), info.name) == topics_neighbor.end() &&
+                 std::find(_topics_neighbor.begin(), _topics_neighbor.end(), info.name) == _topics_neighbor.end() &&
                  info.datatype == "nhttc_ros/AgentState")
         {
-            count++;
-            ROS_INFO_STREAM("Found nhttc_ros neighbor (idx: " << count << ") on topic " << info.name);
+            spdlog::info("Found nhttc_ros neighbor (idx: {}) on {}", count, info.name);
 
             // We now need to wait for the next message on this topic to come in so that we can
             // get the dynamics. We will wait for 5 seconds for this message, terminating and
@@ -335,115 +330,104 @@ void NHTTCNode::check_new_agents(ros::NodeHandle &nh)
                 continue;
             }
 
-            agent_setup(count, (AType) msg->kinematics, false);
-            subs_neighbor.push_back(
+            agentSetup(count, (AType) msg->kinematics, false);
+            _subs_neighbor.push_back(
                 nh.subscribe<nhttc_ros::AgentState>(
                     info.name,
                     10,
                     boost::bind(&NHTTCNode::NHTTCNeighborCallback, this, _1, count)));
-            topics_neighbor.push_back(info.name);
+            _topics_neighbor.push_back(info.name);
         }
     }
 }
 
-/**
- * nhttc ros constructor
- *
- * Sets up the publishers, subscribers and the whole shebang
- */
 NHTTCNode::NHTTCNode(ros::NodeHandle &nh)
 {
     own_index = -1;
-    goal_received = false; // start with the assumption that the car has no goal
+    goal_received = false; 
 
-    solver_time         = nh.param("/solver_time", 10);
-    simulation          = nh.param("/sim", true); // Could be big
+    // Optimization parameters
+    solver_time         = nh.param("solver_time", 10);
+    safety_radius       = nh.param("safety_radius", 0.1f);
+    carrot_goal_ratio   = nh.param("carrot_goal_ratio", 1.0f);
+    max_ttc             = nh.param("max_ttc", 6.0f);
+    obey_time           = nh.param("obey_time", false); // false by default
+    adaptive_lookahead  = nh.param("adaptive_lookahead", false);
+
+    // Neighbor parameters
     num_agents_max      = nh.param("max_agents", 8);
-    carrot_goal_ratio   = nh.param("/carrot_goal_ratio", 1.0f);
-    max_ttc             = nh.param("/max_ttc", 6.0f);
-    obey_time           = nh.param("/obey_time", false); // false by default
-    allow_reverse       = nh.param("/allow_reverse", true); // true by default (default behavior is to not have any constraints on the nav engine)
-    adaptive_lookahead  = nh.param("/adaptive_lookahead", false);
-    safety_radius       = nh.param("/safety_radius", 0.1f);
-    odom_topic          = nh.param("/odom_topic", "/odom");
-    cmd_vel_topic       = nh.param("/cmd_vel_topic", "/cmd_vel");
-    cutoff_dist         = nh.param("/cutoff_dist", 0.1f);
-    neighbor_topic_root = nh.param("/neighbor_topic_root", "/odometry/tracker_");
-    pose_timeout        = nh.param("/pose_timeout", 0.5);
+    pose_timeout        = nh.param("pose_timeout", 0.5);
+    odom_topic          = nh.param("odom_topic", std::string("odom"));
+    neighbor_topic_root = nh.param("neighbor_topic_root", std::string("/odometry/tracker_"));
+
+    // Control parameters
+    steer_limit         = nh.param("steer_limit", 0.5 * M_PI);
+    allow_reverse       = nh.param("allow_reverse", true);
+    speed_lim           = nh.param("speed_lim", 0.46f);
+    cutoff_dist         = nh.param("cutoff_dist", 0.1f);
+
 
     ConstructGlobalParams(&global_params);
-    count = -1;
 
-    // Check 5 times over 5 seconds for the ego agent topics
+    // Check 5 times over 5 seconds for the ego agent topics. Maybe it would
+    // be better to use a timer every second for the lifecycle of the node?
     ros::Rate r(1);
     for (int i = 0; i < 5; i++)
     {
-        check_new_agents(nh);
+        checkNewAgents(nh);
         r.sleep();
     }
 
-    // set up all the publishers/subscribers
-    sub_wp = nh.subscribe("/move_base_simple/goal", 10, &NHTTCNode::GoalCallback, this);
-    sub_pose = nh.subscribe(odom_topic, 10, &NHTTCNode::PoseCallback, this);
+    std::string goal_topic = nh.param("goal_topic", std::string("goal"));
 
-    pub_viz = nh.advertise<visualization_msgs::MarkerArray>("/nhttc/debug_markers", 1);
-    pub_cmd = nh.advertise<geometry_msgs::Twist>(cmd_vel_topic, 10);
+    _sub_wp   = nh.subscribe(goal_topic, 10, &NHTTCNode::goalCallback, this);
+    _sub_pose = nh.subscribe(odom_topic, 10, &NHTTCNode::poseCallback, this);
 
-    ROS_INFO("node started"); // tell the world that the node has initialized.
+    std::string cmd_vel_topic = nh.param("cmd_vel_topic", std::string("cmd_vel"));
+
+    _pub_viz = nh.advertise<visualization_msgs::MarkerArray>("debug_markers", 1);
+    _pub_cmd = nh.advertise<geometry_msgs::Twist>(cmd_vel_topic, 10);
+
+    spdlog::info("node started");
 }
 
-/**
- * Parameter setting for the ego-agent.
- *
- * Sets up the tuning parameters for the ego-agent. These parameters are taken from the launch file. The tuning parameters include
- * 1) The carrot-goal ratio: (lookahead distance)/(turning radius of the car)
- * 2) max_ttc: maximum time-to-collision
- */
 void NHTTCNode::setup()
 {
-    steer_limit = 0.5 * M_PI;
-
-    wheelbase = agents[own_index].GetProblem()->params.wheelbase;
     agents[own_index].GetProblem()->params.safety_radius = safety_radius;
     agents[own_index].GetProblem()->params.steer_limit = steer_limit;
     agents[own_index].GetProblem()->params.vel_limit = speed_lim;
-    agents[own_index].GetProblem()->params.u_lb = allow_reverse ? Eigen::Vector2f(-speed_lim, -steer_limit) : Eigen::Vector2f(0, -steer_limit);
+    agents[own_index].GetProblem()->params.u_lb = Eigen::Vector2f(allow_reverse ? -speed_lim : 0, -steer_limit);
     agents[own_index].GetProblem()->params.u_ub = Eigen::Vector2f(speed_lim, steer_limit);
     agents[own_index].GetProblem()->params.max_ttc = max_ttc;
 
-    ROS_INFO("carrot_goal_ratio: %f", carrot_goal_ratio);
-    ROS_INFO("max_ttc: %f", max_ttc);
-    ROS_INFO("solver_time: %d", solver_time);
-    ROS_INFO("obey_time:%d", int(obey_time));
-    ROS_INFO("allow_reverse: %d", int(allow_reverse));
-    ROS_INFO("safety_radius: %f", safety_radius);
-    ROS_INFO("adaptive_lookahead, %d", int(adaptive_lookahead));
+    spdlog::info("carrot_goal_ratio:  {}", carrot_goal_ratio);
+    spdlog::info("max_ttc:            {}", max_ttc);
+    spdlog::info("solver_time:        {}", solver_time);
+    spdlog::info("obey_time:          {}", int(obey_time));
+    spdlog::info("allow_reverse:      {}", int(allow_reverse));
+    spdlog::info("safety_radius:      {}", safety_radius);
+    spdlog::info("adaptive_lookahead: {}", int(adaptive_lookahead));
 }
 
-/**
- * local planner
- *
- * Calls the nhttc solver and sends the output of the solver to the ego-agent. Note that the solver solves only for one agent but it does need
- * to know what the other agents are doing.
- */
 void NHTTCNode::plan()
 {
-    // create obstacle list.
+    // If there are no agents then do not plan
     if (agents.size() == 0)
         return;
 
+    // Build the obstacle list
     obstacles = BuildObstacleList(agents, own_index, pose_timeout);
-    agents[own_index].SetPlanTime(solver_time);                   // 20 ms planning window TODO: see if this only needs to be done once
-    agents[own_index].SetObstacles(obstacles, size_t(own_index)); // set the obstacles
+
+    // Set up the agent
+    agents[own_index].SetPlanTime(solver_time);                   
+    agents[own_index].SetObstacles(obstacles, size_t(own_index));
 
     // Controls are 0,0 by default.
     Eigen::VectorXf controls = Eigen::VectorXf::Zero(2);
 
     // Check if we are within set distance to goal. If so stop planning until next goal is found
     Eigen::Vector2f agent_state = agents[own_index].GetProblem()->params.x_0.head(2);
-    float goal_dist = (agents[own_index].GetGoal() - agent_state).norm();
-
-    ROS_INFO_STREAM_THROTTLE(1, "Goal Distance: " << goal_dist << " / " << cutoff_dist);
+    float goal_dist = agents[own_index].getGoalDistance();
 
     if (goal_dist < cutoff_dist)
     {
@@ -452,50 +436,42 @@ void NHTTCNode::plan()
 
     if (goal_received)
     {
-        controls = agents[own_index].UpdateControls();
+        controls = agents[own_index].CalculateControls();
     }
 
-    float speed = controls[0];          // speed in m/s
-    float steering_angle = controls[1]; // steering angle in radians. +ve is left. -ve is right
+    float speed = controls[0];         
+    float steering_angle = controls[1];
 
     spdlog::debug("New control: {}, {}", speed, steering_angle);
 
-    send_commands(speed, steering_angle); // just sending out anything for now;
-    publish_nhttc_pose();
+    sendCommands(speed, steering_angle);
+
+    // Publish the nhttc pose for other nhttc agents
+    publishNHTTCPose();
+
+    publishDebugViz();
 
     return;
 }
 
-/**
- * main function
- *
- * Sets up the nhttc object and initializes everything.
- */
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "nhttc_local_planner");
     ros::NodeHandle nh("~");
     NHTTCNode local_planner(nh);
     ros::Rate r(40);
-    bool init = false; // flag for node initialization (indicates if the car's car_pose topic has been found)
 
-    while (ros::ok)
+    while (!ros::isShuttingDown())
     {
         ros::spinOnce();
 
-        if (local_planner.own_index != -1 && !init) // if car had not been initialized before and has now found the car_pose topic
+        if (local_planner.ready())
         {
-            init = true;           // set init to true
-            local_planner.setup(); // set up the agent
-        }
-
-        if (init) // if init
-        {
-            local_planner.viz_publish();
             local_planner.plan();
         }
 
         r.sleep();
     }
+
     return 0;
 }

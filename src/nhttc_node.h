@@ -11,59 +11,59 @@
 
 class NHTTCNode
 {
-public:
-  std::vector<ros::Subscriber> subs_neighbor;
-  std::vector<std::string> topics_neighbor;
+private:
+  std::vector<ros::Subscriber> _subs_neighbor;
+  std::vector<std::string> _topics_neighbor;
 
-  ros::Subscriber sub_goal, sub_wp, sub_pose;
-  ros::Publisher pub_cmd, pub_viz, pub_nhttc_pose;
+  ros::Subscriber _sub_goal, _sub_wp, _sub_pose;
+  ros::Publisher _pub_cmd, _pub_viz, pub_nhttc_pose;
 
-  std::string cmd_vel_topic, odom_topic, neighbor_topic_root;
+  std::string odom_topic;
+  std::string neighbor_topic_root;
 
   int own_index;
-  int count;
 
   Eigen::Vector2f goal;
 
+  // NHTTC Hyper Parameters
   int solver_time;
   int num_agents_max;
-  bool simulation;
   bool goal_received;
   float cutoff_dist;
   float steer_limit;
-  float wheelbase;
   float turning_radius;
   float carrot_goal_ratio;
   float max_ttc;
   float safety_radius;
+  float speed_lim;
+  bool obey_time;
+  bool allow_reverse;
+  bool adaptive_lookahead;
   SGDOptParams global_params;
 
   double pose_timeout;
 
-  std::vector<Agent> agents; //all agents
-
-  float speed_lim = 0.46f;
-  bool obey_time;
-  bool allow_reverse;
-  bool adaptive_lookahead;
-
+  std::vector<Agent> agents; 
   std::vector<TTCObstacle*> obstacles{};
 
-  ros::master::V_TopicInfo master_topics;
 
+
+  void agentSetup(int i, AType agent_type, bool reactive);
+  void RPYFromQuat(float rpy[3],const nav_msgs::Odometry::ConstPtr& msg);
+  void sendCommands(float speed, float steer);
+  void checkNewAgents(ros::NodeHandle &nh);
+  void publishNHTTCPose();
+
+  void goalCallback(const geometry_msgs::PoseStamped::ConstPtr& msg);
+  void poseCallback(const nav_msgs::Odometry::ConstPtr& msg);
+  void neighborCallback(const nav_msgs::Odometry::ConstPtr& msg, int neighbor_idx);
+  void NHTTCNeighborCallback(const nhttc_ros::AgentState::ConstPtr& msg, int neighbor_idx);
+
+public:
   NHTTCNode(ros::NodeHandle &nh);
 
-  void agent_setup(int i, AType agent_type, bool reactive);
-  void rpy_from_quat(float rpy[3],const nav_msgs::Odometry::ConstPtr& msg);
-  void send_commands(float speed, float steer);
-  void check_new_agents(ros::NodeHandle &nh);
-  void publish_nhttc_pose();
-  void viz_publish();
+  void publishDebugViz();
   void setup();
   void plan();
-
-  void GoalCallback(const geometry_msgs::PoseStamped::ConstPtr& msg);
-  void PoseCallback(const nav_msgs::Odometry::ConstPtr& msg);
-  void NeighborCallback(const nav_msgs::Odometry::ConstPtr& msg, int neighbor_idx);
-  void NHTTCNeighborCallback(const nhttc_ros::AgentState::ConstPtr& msg, int neighbor_idx);
+  inline bool ready() { return own_index != -1; };
 };
